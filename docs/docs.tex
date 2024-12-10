@@ -27,7 +27,6 @@
  pdftitle={Dokumentacja wstepna projektu z UMA},
  pdfkeywords={},
  pdfsubject={},
- pdfcreator={Emacs 29.4 (Org mode 9.7.11)}, 
  pdflang={Polish}}
 \begin{document}
 
@@ -61,14 +60,14 @@ W podstawowej, nieograniczonej wersji drzewa klasyfikacyjnego, dążymy do momen
 \pagebreak
 
 \subsubsection{Entropia}
-\label{ent}\textbf{Entropia} to miara niejednolitości podziału klas. Im większą ma wartość, tym klasy są bardziej wymieszane. Jest obliczana wg wzoru:
+\label{ent}\textbf{Entropia} to miara niejednorodności podziału klas. Im większą ma wartość, tym klasy są bardziej wymieszane. Jest obliczana wg wzoru:
 $$
 E(X) = \sum_{d \in C} -P(c = d)\ \log P(c = d)
 $$
 gdzie:
 \begin{itemize}
 \item $X$ - zbiór przykładów w danym węźle
-\item $P(c = d)$ - prawdopodobieństwo wystąpienia klasy $d$ w zbiorze ($\frac{\text{liczba wystąpień klasy $d$ w zbiorze}}{\text{liczba wszystkich elementów w zbiorze}}$)
+\item $P(c = d)$ - p-stwo wystąpienia klasy $d$ w zbiorze ($\frac{\text{liczba wystąpień klasy $d$ w zbiorze}}{\text{liczba wszystkich elementów w zbiorze}}$)
 \end{itemize}
 Entropia przyjmuje wartość z przedziału $[0,1]$, dążymy do jej minimalizacji.
 \\\\
@@ -90,7 +89,7 @@ Przyjmujemy następujące kryteria podziału w węzłach:
 \begin{itemize}
 \item\textbf{atrybuty ciągłe}: binarny na podstawie nierówności $a_i \le t$
 \item \textbf{atrybuty dyskretne}: binarny na podstawie przynależności do zbioru $a_i \in T$
-    \SubItem{wprowadzamy ograniczenie, że zbiór $T$ może zawierać co najwyżej połowę wartości atrybutu}
+    \SubItem{wprowadzamy ograniczenie, że zbiór $T$ może zawierać najwyżej połowę wartości atrybutu}
     \SubItem{w teście bierzemy pod uwagę tylko kombinację wartości zawartych w zbiorze $T$, która daje najwyższy przyrost informacji}
 \end{itemize}
 
@@ -125,7 +124,7 @@ def build_tree(attrs, data, classes, max_depth) -> DecisionTree:
         # w przypadku danych niejednorodnych wybieramy najczęstszą klasę
         return most_common(data)
     tree = DecisionTree()
-    
+
     # przeprowadzamy test z ruletką
     tree.attr, tree.threshold = test(attrs, data, classes)
     new_attr = attrs - tree.attr
