@@ -21,10 +21,10 @@
 
 \author{Piotr Jabłoński (325163) i Paweł Wysocki (325248)}
 \date{Grudzień 2024}
-\title{Dokumentacja wstepna projektu z UMA}
+\title{UMA - dokumentacja wstępna}
 \hypersetup{
  pdfauthor={Piotr Jabłoński (325163) i Paweł Wysocki (325248)},
- pdftitle={Dokumentacja wstepna projektu z UMA},
+ pdftitle={UMA - dokumentacja wstępna},
  pdfkeywords={},
  pdfsubject={},
  pdflang={Polish}}
@@ -145,7 +145,7 @@ def test(attrs, data, classes):
         IGs.append(IG(a, data, classes))
 
     # ruletkowy wybór zysku informacji
-    total = sum(IGs); running_total = 0; p = randint(0, total)
+    total = sum([ig.gain for ig in IGs])
     probabilities = [ig.gain / total for ig in IGs]
     return numpy.random.choice(IGs, 1, p = probabilities)
 \end{verbatim}
