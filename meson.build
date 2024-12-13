@@ -11,7 +11,7 @@ srcdir = 'src/'
 subdir(srcdir)
 
 executable(
-  'Projekt',
+  'uma',
   sources,
   install: true,
   include_directories: incdir,
