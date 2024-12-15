@@ -1,6 +1,7 @@
-sources = files(
-  'main.cpp',
-)
+sources = files('main.cpp')
 
-incdir = 'include/'
-incdir = include_directories(incdir, incdir + 'randshow/include', incdir + 'rapidcsv/src', 'lib')
+incdir = include_directories(
+  'include/randshow/include',
+  'include/rapidcsv/src',
+  'lib',
+)
