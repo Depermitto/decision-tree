@@ -1,0 +1,6 @@
+[submodule "src/include/rapidcsv"]
+	path = src/include/rapidcsv
+	url = https://github.com/d99kris/rapidcsv
+[submodule "src/include/randshow"]
+	path = src/include/randshow
+	url = https://github.com/Depermitto/randshow
