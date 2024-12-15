@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <decision_tree.hpp>
+#include <iomanip>
 #include <iterator>
 #include <tuple>
 
@@ -18,9 +19,10 @@ std::tuple<std::vector<T>, std::vector<T>> train_test_split(It start, It end, fl
 }
 
 int main() {
+    // Read data
     rapidcsv::Document doc("data/winequality-red.csv");
 
-    // Read and prepare data
+    // Parse data
     const auto attributes = doc.GetColumnNames();
     std::vector<std::vector<double>> data(doc.GetRowCount());
     for (size_t i = 0; i < doc.GetRowCount(); i++) {
@@ -28,14 +30,13 @@ int main() {
     }
 
     // Train
-    const auto [train, test] = train_test_split<std::vector<double>>(data.cbegin(), data.cend(), 0.8);
-    uma::DecisionTree dt(train, attributes, 1);
+    const auto [train, test] = train_test_split<std::vector<double>>(data.begin(), data.end(), 0.8);
+    uma::DecisionTree dt(train, attributes, 2);
     std::cout << dt << '\n';
 
     // Test
-    size_t correct = 0;
-    std::for_each(test.cbegin(), test.cend(), [&dt, &correct](const auto& test_data) {
-        correct += test_data[test_data.size() - 1] == dt.predict(test_data);
+    size_t correct = std::count_if(test.begin(), test.end(), [&dt](const std::vector<double>& test_data) {
+        return test_data[test_data.size() - 1] == dt.predict(test_data);
     });
-    std::cout << "accuracy: " << (double)correct / test.size() << '\n';
+    std::cout << "accuracy: " << std::setprecision(2) << (double)correct / test.size() << '\n';
 }
