@@ -31,22 +31,36 @@ class DecisionTree {
         Node(const std::variant<Class, std::tuple<std::string, Cell>> &value,
              std::unique_ptr<Node> left = nullptr, std::unique_ptr<Node> right = nullptr)
             : m_value(value), m_left(std::move(left)), m_right(std::move(right)) {}
+
+        Class predict(Cell test_class) const {
+            if (std::holds_alternative<Class>(m_value)) {
+                return std::get<Class>(m_value);
+            }
+
+            const auto &[a, t] = std::get<std::tuple<std::string, Cell>>(m_value);
+            if (not m_right or test_class < t) {
+                return m_left->predict(test_class);
+            } else {
+                return m_right->predict(test_class);
+            }
+        }
     };
 
    public:
-    DecisionTree(const std::vector<std::string> &labels, const Vector2D &data, size_t max_depth = 0) {
+    DecisionTree(const Vector2D &train_data, const std::vector<std::string> &labels, size_t max_depth = 0) {
         m_labels = labels;
         std::vector<std::string> attributes(m_labels.begin(), m_labels.end() - 1);
 
         if (max_depth == 0 || max_depth > attributes.size()) {
-            max_depth = std::log2(attributes.size());
+            max_depth = std::ceil(std::log2(attributes.size()));
         }
-        m_root = build_tree(attributes, data, max_depth);
-        if (not m_root) throw std::runtime_error("could not fit the tree!");
+        m_root = build_tree(attributes, train_data, max_depth);
+        if (not m_root) throw std::runtime_error("could not fit the tree");
     }
 
-    Class predict() const {
-        // TODO
+    Class predict(const std::vector<Cell> &test_data) const {
+        if (not m_root) throw std::runtime_error("could not predict on an untrained tree");
+        return m_root->predict(test_data[m_labels.size() - 1]);
     }
 
     friend std::ostream &operator<<(std::ostream &os, const DecisionTree &dt) {
