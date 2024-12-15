@@ -124,13 +124,19 @@ class DecisionTree {
     }
 
     std::tuple<size_t, Cell> test(const std::vector<std::string> &attributes, const Vector2D &data) const {
+        std::unordered_map<Class, size_t> class_counts;
+        size_t class_idx = m_labels.size() - 1;
+        for (size_t row_idx = 0; row_idx < data.size(); row_idx++) {
+            class_counts[data[row_idx][class_idx]]++;
+        }
+
         size_t attr_idx;
         Cell threshold;
         double max_gain = -std::numeric_limits<double>::infinity();
         for (size_t a_idx = 0; a_idx < attributes.size(); a_idx++) {
             for (size_t row_idx = 0; row_idx < data.size(); row_idx++) {
                 Cell t = data[row_idx][a_idx];
-                double gain = information_gain(a_idx, t, data);
+                double gain = information_gain(a_idx, t, data, class_counts);
                 if (gain > max_gain) {
                     max_gain = gain;
                     attr_idx = a_idx;
@@ -141,9 +147,11 @@ class DecisionTree {
         return std::make_tuple(attr_idx, threshold);
     }
 
-    double information_gain(size_t attr_idx, Cell threshold, const Vector2D &data) const {
+    template <typename Map>
+    double information_gain(size_t attr_idx, Cell threshold, const Vector2D &data,
+                            const Map &class_counts) const {
         size_t left_data_amount = 0, right_data_amount = 0;
-        std::unordered_map<Class, size_t> left_class_counts, right_class_counts, class_counts;
+        std::unordered_map<Class, size_t> left_class_counts, right_class_counts;
         size_t class_idx = m_labels.size() - 1;
         for (size_t row_idx = 0; row_idx < data.size(); row_idx++) {
             if (data[row_idx][attr_idx] < threshold) {
@@ -153,7 +161,6 @@ class DecisionTree {
                 right_class_counts[data[row_idx][class_idx]]++;
                 right_data_amount++;
             }
-            class_counts[data[row_idx][class_idx]]++;
         }
 
         double left_weight = (double)left_data_amount / data.size();
