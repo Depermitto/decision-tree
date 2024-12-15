@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <functional>
 #include <iomanip>
+#include <limits>
 #include <memory>
 #include <ostream>
 #include <stdexcept>
@@ -13,10 +14,7 @@
 #include <variant>
 #include <vector>
 
-#include "randshow/engines.hpp"
-
 namespace uma {
-constexpr size_t CHUNK = 5;  // NOTE: maybe add this as parameter or template parameter?
 class DecisionTree {
     using Class = double;                             // TODO change to std::tuple<double, std::string>
     using Cell = double;                              // TODO change to template parameter
@@ -24,24 +22,24 @@ class DecisionTree {
                                                       // with heterogeneous memory layout
 
     struct Node {
-        std::variant<Class, std::tuple<std::string, Cell>> m_value;
+        std::variant<Class, std::tuple<size_t, Cell>> m_value;
         std::unique_ptr<Node> m_left;
         std::unique_ptr<Node> m_right;
 
-        Node(const std::variant<Class, std::tuple<std::string, Cell>> &value,
-             std::unique_ptr<Node> left = nullptr, std::unique_ptr<Node> right = nullptr)
+        Node(const std::variant<Class, std::tuple<size_t, Cell>> &value, std::unique_ptr<Node> left = nullptr,
+             std::unique_ptr<Node> right = nullptr)
             : m_value(value), m_left(std::move(left)), m_right(std::move(right)) {}
 
-        Class predict(Cell test_class) const {
+        Class predict(const std::vector<Cell> &test_data) const {
             if (std::holds_alternative<Class>(m_value)) {
                 return std::get<Class>(m_value);
             }
 
-            const auto &[a, t] = std::get<std::tuple<std::string, Cell>>(m_value);
-            if (not m_right or test_class < t) {
-                return m_left->predict(test_class);
+            const auto &[attr_idx, threshold] = std::get<std::tuple<size_t, Cell>>(m_value);
+            if (!m_right || test_data[attr_idx] < threshold) {
+                return m_left->predict(test_data);
             } else {
-                return m_right->predict(test_class);
+                return m_right->predict(test_data);
             }
         }
     };
@@ -51,28 +49,28 @@ class DecisionTree {
         m_labels = labels;
         std::vector<std::string> attributes(m_labels.begin(), m_labels.end() - 1);
 
-        if (max_depth == 0 || max_depth > attributes.size()) {
+        if (max_depth == 0) {
             max_depth = std::ceil(std::log2(attributes.size()));
         }
         m_root = build_tree(attributes, train_data, max_depth);
-        if (not m_root) throw std::runtime_error("could not fit the tree");
+        if (!m_root) throw std::runtime_error("could not fit the tree");
     }
 
     Class predict(const std::vector<Cell> &test_data) const {
-        if (not m_root) throw std::runtime_error("could not predict on an untrained tree");
-        return m_root->predict(test_data[m_labels.size() - 1]);
+        if (!m_root) throw std::runtime_error("could not predict on an untrained tree");
+        return m_root->predict(test_data);
     }
 
     friend std::ostream &operator<<(std::ostream &os, const DecisionTree &dt) {
         os << "DecisionTree{";
         if (dt.m_root) {
-            std::function<void(const Node &, size_t)> inorder = [&os, &inorder](const Node &node,
-                                                                                size_t depth) {
+            std::function<void(const Node &, size_t)> inorder = [&dt, &os, &inorder](const Node &node,
+                                                                                     size_t depth) {
                 if (std::holds_alternative<Class>(node.m_value)) {
                     os << '(' << std::get<Class>(node.m_value);
                 } else {
-                    const auto [a, t] = std::get<std::tuple<std::string, Cell>>(node.m_value);
-                    os << '(' << a << ", " << t;
+                    const auto &[attr_idx, threshold] = std::get<std::tuple<size_t, Cell>>(node.m_value);
+                    os << '(' << dt.m_labels[attr_idx] << ", " << threshold;
                 }
                 os << ")\n";
 
@@ -115,11 +113,12 @@ class DecisionTree {
 
         const auto [attr_idx, threshold] = test(attributes, data);
         const auto [left_data, right_data] = split_data(attr_idx, threshold, data);
-        // std::cout << left_data.size() << ' ' << right_data.size() << '\n';
-        std::string attr = attributes[attr_idx];
+
+        size_t label_idx =
+            std::find(m_labels.begin(), m_labels.end(), attributes[attr_idx]) - m_labels.begin();
         attributes.erase(attributes.begin() + attr_idx);
 
-        return std::make_unique<Node>(std::make_tuple(std::move(attr), threshold),
+        return std::make_unique<Node>(std::make_tuple(label_idx, threshold),
                                       build_tree(attributes, left_data, max_depth - 1),
                                       build_tree(attributes, right_data, max_depth - 1));
     }
@@ -127,13 +126,12 @@ class DecisionTree {
     std::tuple<size_t, Cell> test(const std::vector<std::string> &attributes, const Vector2D &data) const {
         size_t attr_idx;
         Cell threshold;
-        double max_gain = 0;
+        double max_gain = -std::numeric_limits<double>::infinity();
         for (size_t a_idx = 0; a_idx < attributes.size(); a_idx++) {
-            for (size_t row_idx = randshow::DefaultEngine.Next(CHUNK); row_idx < data.size();
-                 row_idx += CHUNK) {
+            for (size_t row_idx = 0; row_idx < data.size(); row_idx++) {
                 Cell t = data[row_idx][a_idx];
                 double gain = information_gain(a_idx, t, data);
-                if (gain >= max_gain) {
+                if (gain > max_gain) {
                     max_gain = gain;
                     attr_idx = a_idx;
                     threshold = t;
