@@ -15,7 +15,7 @@ std::tuple<std::vector<T>, std::vector<T>> train_test_split(It start, It end, fl
     randshow::DefaultEngine.Shuffle(train_data.begin(), train_data.end());
     randshow::DefaultEngine.Shuffle(test_data.begin(), test_data.end());
 
-    return std::make_tuple(train_data, test_data);
+    return std::make_tuple(std::move(train_data), std::move(test_data));
 }
 
 int main() {
@@ -31,12 +31,17 @@ int main() {
 
     // Train
     const auto [train, test] = train_test_split<std::vector<double>>(data.begin(), data.end(), 0.8);
-    uma::DecisionTree dt(train, attributes, 2);
+    uma::DecisionTree dt(train, attributes, 3);
     std::cout << dt << '\n';
 
     // Test
-    size_t correct = std::count_if(test.begin(), test.end(), [&dt](const std::vector<double>& test_data) {
-        return test_data[test_data.size() - 1] == dt.predict(test_data);
-    });
-    std::cout << "accuracy: " << std::setprecision(2) << (double)correct / test.size() << '\n';
+    const auto accuracy = [&dt](const auto& data) {
+        size_t correct = std::count_if(data.begin(), data.end(), [&dt](const std::vector<double>& test_data) {
+            return test_data[test_data.size() - 1] == dt.predict(test_data);
+        });
+        return (double)correct / data.size();
+    };
+
+    std::cout << "train accuracy: " << std::setprecision(2) << accuracy(train) << '\n';
+    std::cout << "test accuracy: " << std::setprecision(2) << accuracy(test) << '\n';
 }
