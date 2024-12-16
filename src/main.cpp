@@ -31,7 +31,7 @@ int main() {
 
     // Train
     const auto [train, test] = train_test_split<std::vector<double>>(data.begin(), data.end(), 0.8);
-    uma::DecisionTree dt(train, attributes, 3);
+    uma::DecisionTree dt(train, attributes, 4);
     std::cout << dt << '\n';
 
     // Test

@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <functional>
 #include <iomanip>
-#include <limits>
+#include <iostream>
 #include <memory>
 #include <ostream>
 #include <stdexcept>
@@ -13,6 +13,8 @@
 #include <unordered_map>
 #include <variant>
 #include <vector>
+
+#include "randshow/engines.hpp"
 
 namespace uma {
 class DecisionTree {
@@ -104,7 +106,6 @@ class DecisionTree {
                 common[data[row_idx][class_idx]]++;
             }
 
-            // TODO: should be roulette
             return std::make_unique<Node>(
                 std::max_element(common.begin(), common.end(), [](const auto &p1, const auto &p2) {
                     return p1.second < p2.second;
@@ -130,21 +131,29 @@ class DecisionTree {
             class_counts[data[row_idx][class_idx]]++;
         }
 
-        size_t attr_idx;
-        Cell threshold;
-        double max_gain = -std::numeric_limits<double>::infinity();
-        for (size_t a_idx = 0; a_idx < attributes.size(); a_idx++) {
+        std::vector<double> weigths;
+        weigths.reserve(data.size() * attributes.size());
+        for (size_t attr_idx = 0; attr_idx < attributes.size(); attr_idx++) {
             for (size_t row_idx = 0; row_idx < data.size(); row_idx++) {
-                Cell t = data[row_idx][a_idx];
-                double gain = information_gain(a_idx, t, data, class_counts);
-                if (gain > max_gain) {
-                    max_gain = gain;
-                    attr_idx = a_idx;
-                    threshold = t;
+                double gain = information_gain(attr_idx, data[row_idx][attr_idx], data, class_counts);
+                if (weigths.size() == 0) {
+                    weigths.push_back(gain);
+                } else {
+                    weigths.push_back(weigths.back() + gain);
                 }
             }
         }
-        return std::make_tuple(attr_idx, threshold);
+
+        double running_total = 0, p = randshow::DefaultEngine.Next(weigths.back());
+        for (size_t i = 0; i < weigths.size(); i++) {
+            running_total += weigths[i];
+            if (running_total >= p) {
+                const size_t attr_idx = i / data.size();
+                const Cell threshold = data[i % data.size()][attr_idx];
+                return std::make_tuple(attr_idx, threshold);
+            }
+        }
+        throw std::runtime_error("unreachable");
     }
 
     template <typename Map>
