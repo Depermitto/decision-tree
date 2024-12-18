@@ -1,16 +1,28 @@
 from collections import Counter
 from dataclasses import dataclass
 from typing import Optional, Self, Any
-import pandas as pd
 import numpy as np
 import io
 
 
-class DecisionTree:
-    def __init__(self, features, X, y, max_depth: int) -> None:
-        data = np.hstack([X, y])
+class DecisionTreeClassifier:
+    """DecisionTreeClassifier for continuous and categorical variables"""
+
+    def __init__(
+        self,
+        features,
+        max_depth: Optional[int] = None,
+        min_samples: int = 5,
+    ) -> None:
+        """
+        Args:
+              features (ArrayLike[StringLike]): Used exclusively for pretty printing
+              max_depth (Optional[int], optional): Maximum tree height. Defaults to None, which means no limit.
+              min_samples (int, optional): Minimum amount of data to stop computing and create a leaf. Defaults to 5.
+        """
         self.features = features
-        self.root = DecisionTree.build_tree(features.copy(), data, max_depth)
+        self.max_depth = max_depth
+        self.min_samples = min_samples
 
     @dataclass
     class Node:
@@ -28,43 +40,55 @@ class DecisionTree:
             else:
                 return self.right.predict(x)
 
-    def predict(self, x):
+    def fit(self, X, y):
+        def build_tree(features, data, depth: int) -> DecisionTreeClassifier.Node:
+            if (
+                depth == self.max_depth
+                or len(data) <= self.min_samples
+                or len(np.unique(data[:, -1])) == 1  # purity check
+            ):
+                return DecisionTreeClassifier.Node(
+                    Counter(data[:, -1]).most_common()[0][0]
+                )
+
+            feat_idx, threshold = DecisionTreeClassifier.test(features, data)
+            left_data, right_data = DecisionTreeClassifier.split_data(
+                feat_idx, threshold, data
+            )
+
+            return DecisionTreeClassifier.Node(
+                (feat_idx, threshold),
+                build_tree(features, left_data, depth + 1),
+                build_tree(features, right_data, depth + 1),
+            )
+
+        self.root = build_tree(
+            features=self.features.copy(),
+            data=np.hstack([X, y]),
+            depth=0,
+        )
+
+    def predict(self, X):
         if not self.root:
             raise RuntimeError("Tree is not properly fitted")
 
-        return self.root.predict(x)
-
-    @staticmethod
-    def build_tree(features, data, max_depth) -> Node:
-        if max_depth == 0 or len(features) == 0 or len(data) <= 10:  # arbitrary limit
-            return DecisionTree.Node(Counter(data[:, -1]).most_common()[0][0])
-
-        feat_idx, threshold = DecisionTree.test(features, data)
-        left_data, right_data = DecisionTree.split_data(feat_idx, threshold, data)
-
-        if len(left_data) == 0 or len(right_data) == 0:
-            return DecisionTree.Node(Counter(data[:, -1]).most_common()[0][0])
-
-        np.delete(features, feat_idx)
-
-        return DecisionTree.Node(
-            (feat_idx, threshold),
-            DecisionTree.build_tree(features, left_data, max_depth - 1),
-            DecisionTree.build_tree(features, right_data, max_depth - 1),
-        )
+        return [self.root.predict(x) for x in X]
 
     @staticmethod
     def test(features, data):
         # test k thresholds for every attribute except the classes
-        k = 50
+        k = 20
         test_data = [
             (feat_idx, t)
             for feat_idx in range(len(features) - 1)
-            for t in np.linspace(data[feat_idx].min(), data[feat_idx].max(), k)
+            for t in np.linspace(data[:, feat_idx].min(), data[:, feat_idx].max(), k)
         ]
-        info_gains = [
-            DecisionTree.info_gain(feat_idx, t, data) for feat_idx, t in test_data
-        ]
+        info_gains = np.trim_zeros(
+            [
+                DecisionTreeClassifier.info_gain(feat_idx, t, data)
+                for feat_idx, t in test_data
+            ]
+        )
 
         # roulette
         total = np.sum(info_gains)
@@ -75,14 +99,15 @@ class DecisionTree:
 
     @staticmethod
     def info_gain(feat_idx, threshold, data):
-        left, right = DecisionTree.split_data(feat_idx, threshold, data)
+        left, right = DecisionTreeClassifier.split_data(feat_idx, threshold, data)
         left_weight = left.size / data.size
         right_weight = right.size / data.size
-        return (
-            DecisionTree.entropy(data)
-            - left_weight * DecisionTree.entropy(left)
-            - right_weight * DecisionTree.entropy(right)
+        info_gain = (
+            DecisionTreeClassifier.entropy(data)
+            - left_weight * DecisionTreeClassifier.entropy(left)
+            - right_weight * DecisionTreeClassifier.entropy(right)
         )
+        return max(info_gain, 0)
 
     @staticmethod
     def entropy(data):
@@ -95,11 +120,10 @@ class DecisionTree:
     @staticmethod
     def split_data(feat_idx, threshold, data):
         left_mask = data[:, feat_idx] <= threshold
-
         return data[left_mask], data[~left_mask]
 
     def __str__(self) -> str:
-        def inorder(output, node, depth):
+        def inorder(output: io.StringIO, node: DecisionTreeClassifier.Node, depth: int):
             indent = (depth * 4) * " "
             if isinstance(node.value, np.number):
                 output.write(f"{node.value}\n")
