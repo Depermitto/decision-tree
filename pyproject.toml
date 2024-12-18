@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "uma"
+version = "0.1.0"
+description = ""
+authors = ["Depermitto <penciller@disroot.org>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.13"
+numpy = "^2.2.0"
+pandas = "^2.2.3"
+
+[tool.poe.tasks]
+run = "python src/main.py"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
