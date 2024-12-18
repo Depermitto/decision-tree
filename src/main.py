@@ -17,7 +17,7 @@ def main():
     dt = DecisionTree(features, X_train, y_train, 4)
     print(dt)
 
-    y_pred = dt.predict(X_test)
+    y_pred = [dt.predict(x) for x in X_test]
     acc = accuracy_score(y_test, y_pred)
     print(f"Model accuracy: {acc:.2f}")
 

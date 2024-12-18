@@ -18,6 +18,22 @@ class DecisionTree:
         left: Optional[Self] = None
         right: Optional[Self] = None
 
+        def predict(self, x):
+            if isinstance(self.value, np.number):
+                return self.value
+
+            feat_idx, threshold = self.value
+            if not self.right or x[feat_idx] < threshold:
+                return self.left.predict(x)
+            else:
+                return self.right.predict(x)
+
+    def predict(self, x):
+        if not self.root:
+            raise RuntimeError("Tree is not properly fitted")
+
+        return self.root.predict(x)
+
     @staticmethod
     def build_tree(features, data, max_depth) -> Node:
         if max_depth == 0 or len(features) == 0 or len(data) <= 10:  # arbitrary limit
@@ -85,7 +101,7 @@ class DecisionTree:
     def __str__(self) -> str:
         def inorder(output, node, depth):
             indent = (depth * 4) * " "
-            if isinstance(node.value, np.float64):
+            if isinstance(node.value, np.number):
                 output.write(f"{node.value}\n")
             else:
                 feat_idx, threshold = node.value
