@@ -3,11 +3,15 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 import sklearn.tree
 
-from tree import DecisionTreeClassifier
+from tree import DTClassifier
 
 
 def main():
-    wine = pd.read_csv("data/winequality-red.csv")
+    datasets = [
+        "data/winequality-red.csv",
+        "data/nursery.csv",
+    ]
+    wine = pd.read_csv(datasets[1])
 
     features = wine.columns.values
     X, y = wine.values[:, :-1], wine.values[:, -1].reshape(-1, 1)
@@ -16,7 +20,7 @@ def main():
     )
 
     # Our classifier
-    dt = DecisionTreeClassifier(features)
+    dt = DTClassifier(features, 4)
     dt.fit(X_train, y_train)
     print(dt)
 
@@ -25,15 +29,15 @@ def main():
     print(f"Model accuracy: {acc:.2f}")
 
     # Sklearn gotowiec
-    sklearn_dt = sklearn.tree.DecisionTreeClassifier(
-        criterion="entropy", splitter="random"
-    )
-    sklearn_dt.fit(X_train, y_train)
-    print(sklearn_dt)
+    # sklearn_dt = sklearn.tree.DecisionTreeClassifier(
+    #     criterion="entropy", splitter="random"
+    # )
+    # sklearn_dt.fit(X_train, y_train)
+    # print(sklearn_dt)
 
-    y_pred = sklearn_dt.predict(X_test)
-    acc = accuracy_score(y_test, y_pred)
-    print(f"Sklearn model accuracy: {acc:.2f}")
+    # y_pred = sklearn_dt.predict(X_test)
+    # acc = accuracy_score(y_test, y_pred)
+    # print(f"Sklearn model accuracy: {acc:.2f}")
 
 
 if __name__ == "__main__":

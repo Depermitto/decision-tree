@@ -1,12 +1,41 @@
 from collections import Counter
 from dataclasses import dataclass
 from typing import Optional, Self, Any
+import itertools
 import numpy as np
 import io
 
 
-class DecisionTreeClassifier:
-    """DecisionTreeClassifier for continuous and categorical variables"""
+@dataclass
+class Node:
+    value: Any
+    left: Optional[Self] = None
+    right: Optional[Self] = None
+
+    def predict(self, x):
+        if not isinstance(self.value, InternalNode):
+            return self.value
+
+        feat_idx, threshold = self.value
+        iscatin = isinstance(threshold, tuple) and x[feat_idx] in threshold
+        ismore = isinstance(threshold, np.number) and x[feat_idx] > threshold
+        if iscatin or ismore:
+            return self.right.predict(x)
+        else:
+            return self.left.predict(x)
+
+
+@dataclass
+class InternalNode:
+    feature_idx: int
+    threshold: Any
+
+    def __iter__(self):
+        return iter((self.feature_idx, self.threshold))
+
+
+class DTClassifier:
+    """Classifier for continuous and categorical variables using decision trees"""
 
     def __init__(
         self,
@@ -24,40 +53,22 @@ class DecisionTreeClassifier:
         self.max_depth = max_depth
         self.min_samples = min_samples
 
-    @dataclass
-    class Node:
-        value: Any
-        left: Optional[Self] = None
-        right: Optional[Self] = None
-
-        def predict(self, x):
-            if isinstance(self.value, np.number):
-                return self.value
-
-            feat_idx, threshold = self.value
-            if not self.right or x[feat_idx] < threshold:
-                return self.left.predict(x)
-            else:
-                return self.right.predict(x)
-
     def fit(self, X, y):
-        def build_tree(features, data, depth: int) -> DecisionTreeClassifier.Node:
+        def build_tree(features, data, depth: int) -> Node:
             if (
                 depth == self.max_depth
                 or len(data) <= self.min_samples
                 or len(np.unique(data[:, -1])) == 1  # purity check
             ):
-                return DecisionTreeClassifier.Node(
-                    Counter(data[:, -1]).most_common()[0][0]
-                )
+                return Node(Counter(data[:, -1]).most_common()[0][0])
 
-            feat_idx, threshold = DecisionTreeClassifier.test(features, data)
-            left_data, right_data = DecisionTreeClassifier.split_data(
-                feat_idx, threshold, data
-            )
+            feat_idx, threshold = DTClassifier.test(features, data)
+            left_data, right_data = DTClassifier.split_data(feat_idx, threshold, data)
+            if len(left_data) == 0 or len(right_data) == 0:
+                return Node(Counter(data[:, -1]).most_common()[0][0])
 
-            return DecisionTreeClassifier.Node(
-                (feat_idx, threshold),
+            return Node(
+                InternalNode(feat_idx, threshold),
                 build_tree(features, left_data, depth + 1),
                 build_tree(features, right_data, depth + 1),
             )
@@ -76,21 +87,31 @@ class DecisionTreeClassifier:
 
     @staticmethod
     def test(features, data):
-        # test k thresholds for every attribute except the classes
+        assert len(data) != 0 and len(data[0]) != 0
+        # Test k thresholds for every attribute except the classes
         k = 20
-        test_data = [
-            (feat_idx, t)
-            for feat_idx in range(len(features) - 1)
-            for t in np.linspace(data[:, feat_idx].min(), data[:, feat_idx].max(), k)
-        ]
+        test_data = []
+        for f_idx in range(len(features) - 1):
+            first = data[0, f_idx]
+            if isinstance(first, np.number):
+                f_col = data[:, f_idx]
+                test_data += [
+                    (f_idx, t) for t in np.linspace(f_col.min(), f_col.max(), k)
+                ]
+            elif isinstance(first, str):
+                uniq_categories = np.unique(data[:, f_idx])
+                test_data += [
+                    (f_idx, combinations)
+                    for r in range(1, len(uniq_categories) + 1)
+                    for combinations in list(itertools.combinations(uniq_categories, r))
+                ]
+
+        # Calculate all information gains
         info_gains = np.trim_zeros(
-            [
-                DecisionTreeClassifier.info_gain(feat_idx, t, data)
-                for feat_idx, t in test_data
-            ]
+            [DTClassifier.info_gain(f_idx, t, data) for f_idx, t in test_data]
         )
 
-        # roulette
+        # Roulette
         total = np.sum(info_gains)
         probs = info_gains / total
         i = np.random.choice(range(len(info_gains)), p=probs)
@@ -99,13 +120,13 @@ class DecisionTreeClassifier:
 
     @staticmethod
     def info_gain(feat_idx, threshold, data):
-        left, right = DecisionTreeClassifier.split_data(feat_idx, threshold, data)
+        left, right = DTClassifier.split_data(feat_idx, threshold, data)
         left_weight = left.size / data.size
         right_weight = right.size / data.size
         info_gain = (
-            DecisionTreeClassifier.entropy(data)
-            - left_weight * DecisionTreeClassifier.entropy(left)
-            - right_weight * DecisionTreeClassifier.entropy(right)
+            DTClassifier.entropy(data)
+            - left_weight * DTClassifier.entropy(left)
+            - right_weight * DTClassifier.entropy(right)
         )
         return max(info_gain, 0)
 
@@ -119,13 +140,17 @@ class DecisionTreeClassifier:
 
     @staticmethod
     def split_data(feat_idx, threshold, data):
-        left_mask = data[:, feat_idx] <= threshold
+        if isinstance(threshold, np.number):
+            left_mask = data[:, feat_idx] <= threshold
+        elif isinstance(threshold, tuple):  # (cat1, cat2, cat3,..., catn)
+            left_mask = np.isin(data[:, feat_idx], threshold)
+
         return data[left_mask], data[~left_mask]
 
     def __str__(self) -> str:
-        def inorder(output: io.StringIO, node: DecisionTreeClassifier.Node, depth: int):
+        def inorder(output: io.StringIO, node: Node, depth: int):
             indent = (depth * 4) * " "
-            if isinstance(node.value, np.number):
+            if not isinstance(node.value, InternalNode):
                 output.write(f"{node.value}\n")
             else:
                 feat_idx, threshold = node.value
