@@ -29,7 +29,8 @@ class DTClassifier:
         self,
         features,
         max_depth: Optional[int] = None,
-        min_samples: int = 5,
+        min_samples_split: int = 2,
+        min_samples_leaf: int = 5,
     ) -> None:
         """
         Args:
@@ -39,35 +40,34 @@ class DTClassifier:
         """
         self.features = features
         self.max_depth = max_depth
-        self.min_samples = min_samples
+        self.min_samples_split = min_samples_split
+        self.min_samples_leaf = min_samples_leaf
 
     def fit(self, X, y):
-        def build_tree(features, data, depth: int) -> Node:
+        def build_tree(data, depth: int) -> Node:
             if (
                 depth == self.max_depth
-                or len(features) == 1
-                or len(data) <= self.min_samples
+                or len(data) <= self.min_samples_split
                 or len(np.unique(data[:, -1])) == 1  # purity check
             ):
                 return Node(Counter(data[:, -1]).most_common()[0][0])
 
-            feat_idx, threshold = DTClassifier.test(features, data)
+            feat_idx, threshold = self.test(data)
             left_data, right_data = DTClassifier.split_data(feat_idx, threshold, data)
 
-            if len(left_data) == 0 or len(right_data) == 0:
+            if (
+                len(left_data) <= self.min_samples_leaf
+                or len(right_data) <= self.min_samples_leaf
+            ):
                 return Node(Counter(data[:, -1]).most_common()[0][0])
 
             return Node(
                 (feat_idx, threshold),
-                build_tree(features, left_data, depth + 1),
-                build_tree(features, right_data, depth + 1),
+                build_tree(left_data, depth + 1),
+                build_tree(right_data, depth + 1),
             )
 
-        data = np.hstack([X, y])
-        features = self.features.copy()
-        depth = 0
-
-        self.root = build_tree(features, data, depth)
+        self.root = build_tree(np.hstack([X, y]), 0)
 
     def predict(self, X):
         if not self.root:
@@ -75,13 +75,12 @@ class DTClassifier:
 
         return np.array([self.root.predict(x) for x in X]).reshape(-1, 1)
 
-    @staticmethod
-    def test(features, data):
+    def test(self, data):
         # test k thresholds for every attribute except the classes
         k = 20
         test_data = [
             (feat_idx, t)
-            for feat_idx in range(len(features) - 1)
+            for feat_idx in range(len(self.features) - 1)
             for t in np.linspace(data[:, feat_idx].min(), data[:, feat_idx].max(), k)
         ]
         info_gains = np.trim_zeros(
