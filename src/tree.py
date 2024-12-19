@@ -63,7 +63,6 @@ class DTClassifier:
                 build_tree(features, right_data, depth + 1),
             )
 
-        X = DTClassifier.encode_categorical(X)
         data = np.hstack([X, y])
         features = self.features.copy()
         depth = 0
@@ -73,8 +72,6 @@ class DTClassifier:
     def predict(self, X):
         if not self.root:
             raise RuntimeError("Tree is not properly fitted")
-
-        X = DTClassifier.encode_categorical(X)
 
         return np.array([self.root.predict(x) for x in X]).reshape(-1, 1)
 
@@ -122,24 +119,6 @@ class DTClassifier:
     def split_data(feat_idx, threshold, data):
         left_mask = data[:, feat_idx] <= threshold
         return data[left_mask], data[~left_mask]
-
-    @staticmethod
-    def encode_categorical(X):
-        """Encode categorical variables, has no effect on continuos variables.
-
-        Args:
-            X (NumpyArrayLike): Data to encode
-
-        Returns:
-            NumpyArrayLike: Encoded data
-        """
-        X = X.copy()
-        for f_idx in range(X.shape[1]):
-            if isinstance(X[0, f_idx], str):
-                uniq_categories = np.unique(X[:, f_idx])
-                cat_map = {cat: ordinal for ordinal, cat in enumerate(uniq_categories)}
-                X[:, f_idx] = [cat_map[x] for x in X[:, f_idx]]
-        return X
 
     def __str__(self) -> str:
         def inorder(output: io.StringIO, node: Node, depth: int):
