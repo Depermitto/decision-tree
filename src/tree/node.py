@@ -31,11 +31,11 @@ class Node:
         # Categorical feature
         if isinstance(x[feat_idx], str):
             if not self.right or x[feat_idx] in threshold:
-                return self.left.predict(x)
+                return self.left.predict(x) if self.left else None
             else:
-                return self.right.predict(x)
+                return self.right.predict(x) if self.right else None
         # Continuous feature
         if not self.right or x[feat_idx] < threshold:
-            return self.left.predict(x)
+            return self.left.predict(x) if self.left else None
         else:
-            return self.right.predict(x)
+            return self.right.predict(x) if self.right else None
