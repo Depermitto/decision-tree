@@ -3,11 +3,21 @@ from typing import Optional, Self, Any
 
 @dataclass
 class Node:
+    """
+    Node class for Decision Tree
+    Fields:
+        value (Any): Value of the node. If it is a tuple, it represents a split condition.
+        left (Optional[Self]): Left child node
+        right (Optional[Self]): Right child node
+    """
     value: Any
     left: Optional[Self] = None
     right: Optional[Self] = None
 
     def predict(self, x):
+        """
+        Traverse the tree to predict the class of the input sample.
+        """
         if not isinstance(self.value, tuple):
             return self.value
 
