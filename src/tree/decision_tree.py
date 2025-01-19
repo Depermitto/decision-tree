@@ -13,6 +13,7 @@ class DecisionTree(ABC):
     max_depth: Optional[int]
     min_samples_split: int
     min_samples_leaf: int
+    num_thresholds: int
     root: Node | None = None
 
     def __init__(
@@ -21,6 +22,7 @@ class DecisionTree(ABC):
         max_depth: Optional[int] = None,
         min_samples_split: int = 2,
         min_samples_leaf: int = 5,
+        num_thresholds: int = 20,
     ) -> None:
         """
         Args:
@@ -28,11 +30,13 @@ class DecisionTree(ABC):
             max_depth (Optional[int], optional): Maximum tree height. Defaults to None, which means no limit.
             min_samples_split (int, optional): Minimum amount of data to split. Defaults to 2.
             min_samples_leaf (int, optional): Minimum amount of data to stop computing and create a leaf. Defaults to 5.
+            num_thresholds (int, optional): Number of thresholds to test for continuous features. Defaults to 20.
         """
         self.features = features
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
         self.min_samples_leaf = min_samples_leaf
+        self.num_thresholds = num_thresholds
 
     def fit(self, X, y) -> None:
         """
@@ -111,8 +115,17 @@ class DecisionTree(ABC):
                 ]
                 test_data.append((feat_idx, subsets))
             else:  # continuous feature
-                # get every unique value
-                test_data.append((feat_idx, np.unique(data[:, feat_idx])))
+                # split the range of the feature into 20 parts
+                test_data.append(
+                    (
+                        feat_idx,
+                        np.linspace(
+                            data[:, feat_idx].min(),
+                            data[:, feat_idx].max(),
+                            self.num_thresholds,
+                        ),
+                    )
+                )
 
         # calculating the information gain for each test
         tests: list[tuple[int, Any]] = []
