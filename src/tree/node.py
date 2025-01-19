@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional, Self, Any
 
+
 @dataclass
 class Node:
     """
@@ -10,6 +11,7 @@ class Node:
         left (Optional[Self]): Left child node
         right (Optional[Self]): Right child node
     """
+
     value: Any
     left: Optional[Self] = None
     right: Optional[Self] = None
@@ -17,6 +19,10 @@ class Node:
     def predict(self, x):
         """
         Traverse the tree to predict the class of the input sample.
+        Args:
+            x (ArrayLike): Input sample
+        Returns:
+            Any: Predicted class of the input sample
         """
         if not isinstance(self.value, tuple):
             return self.value
